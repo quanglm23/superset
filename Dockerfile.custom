@@ -1,0 +1,27 @@
+# Dockerfile.custom
+# File này kế thừa từ image Superset đã được build sẵn,
+# và chỉ thêm vào các gói hệ thống cần thiết cho MS SQL.
+
+ARG TAG=latest-dev
+FROM apache/superset:${TAG}
+
+# Chuyển sang user root để có quyền cài đặt
+USER root
+
+# Cài đặt ONLY các gói hệ thống cần thiết
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        build-essential \
+        curl \
+        gnupg \
+        lsb-release && \
+    curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg && \
+    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft-prod.gpg] https://packages.microsoft.com/debian/12/prod $(lsb_release -cs) main" > /etc/apt/sources.list.d/mssql-release.list && \
+    apt-get update && \
+    ACCEPT_EULA=Y apt-get install -y --no-install-recommends \
+        msodbcsql18 \
+        unixodbc-dev && \
+    # Cập nhật bộ đệm liên kết động - Rất quan trọng!
+    ldconfig && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*

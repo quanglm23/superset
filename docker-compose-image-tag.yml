@@ -21,11 +21,18 @@
 # create you own docker environment file (docker/.env) with your own
 # unique random secure passwords and SECRET_KEY.
 # -----------------------------------------------------------------------
-x-superset-image: &superset-image apachesuperset.docker.scarf.sh/apache/superset:${TAG:-latest-dev}
+#x-superset-image: &superset-image apachesuperset.docker.scarf.sh/apache/superset:${TAG:-latest-dev}
+# Thay thế dòng x-superset-image bằng khối này
+x-superset-build: &superset-build
+  context: .
+  dockerfile: Dockerfile.custom
+  args:
+    - TAG=${TAG:-latest-dev}
 x-superset-volumes:
   &superset-volumes # /app/pythonpath_docker will be appended to the PYTHONPATH in the final container
   - ./docker:/app/docker
   - superset_home:/app/superset_home
+  - ./superset_config.py:/app/pythonpath/superset_config.py
 
 services:
   redis:
@@ -54,9 +61,11 @@ services:
         required: true
       - path: docker/.env-local # optional override
         required: false
-    image: *superset-image
+    #image: *superset-image
+    build: *superset-build
     container_name: superset_app
     command: ["/app/docker/docker-bootstrap.sh", "app-gunicorn"]
+    #command: ["gunicorn", "--bind", "0.0.0.0:8088", "--workers", "4", "--timeout", "120", "--limit-request-line", "0", "--limit-request-field_size", "0", "superset.app:create_app()"]
     user: "root"
     restart: unless-stopped
     ports:
@@ -67,9 +76,9 @@ services:
     volumes: *superset-volumes
     environment:
       SUPERSET_LOG_LEVEL: "${SUPERSET_LOG_LEVEL:-info}"
-
   superset-init:
-    image: *superset-image
+    #image: *superset-image
+    build: *superset-build
     container_name: superset_init
     command: ["/app/docker/docker-init.sh"]
     env_file:
@@ -91,7 +100,8 @@ services:
       SUPERSET_LOG_LEVEL: "${SUPERSET_LOG_LEVEL:-info}"
 
   superset-worker:
-    image: *superset-image
+    #image: *superset-image
+    build: *superset-build
     container_name: superset_worker
     command: ["/app/docker/docker-bootstrap.sh", "worker"]
     env_file:
@@ -115,7 +125,8 @@ services:
       SUPERSET_LOG_LEVEL: "${SUPERSET_LOG_LEVEL:-info}"
 
   superset-worker-beat:
-    image: *superset-image
+    #image: *superset-image
+    build: *superset-build
     container_name: superset_worker_beat
     command: ["/app/docker/docker-bootstrap.sh", "beat"]
     env_file:
